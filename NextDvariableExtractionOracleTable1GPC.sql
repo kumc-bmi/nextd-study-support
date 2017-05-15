@@ -389,6 +389,17 @@ COMMIT;
 -----         The date of the first medication of any kind will be recorded for each patient              -----
 -------------------------------------------------------------------------------------------------------------*/
 
+
+-- TODO: integrate this example query into the code below...
+select a.PATID, a.encounterid, round(a.RX_ORDER_DATE) as MedDate
+    , nextd_drug_category(a.rxnorm_cui, a.RAW_RX_MED_NAME) dm_drug
+  from
+  -- for testing:
+  -- (select * from "PCORNET_CDM_C2R2".PRESCRIBING where rownum < 1000) a
+  "PCORNET_CDM_C2R2".PRESCRIBING a
+;
+
+
 create or replace view each_med_obs as
 with med_info_aux as (
   select distinct dm_drug, drug, rxcui, pattern

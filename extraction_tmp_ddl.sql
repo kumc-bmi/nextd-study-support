@@ -450,6 +450,32 @@ create table nextd_med_info (
   constraint but_not_needs_pattern check (but_not is null or pattern is not null)
 );
 
+create or replace function nextd_drug_category(
+    rxnorm_cui      varchar2,
+    raw_rx_med_name varchar2)
+  return integer deterministic
+is
+  cat integer;
+begin
+  select dm_drug
+  into cat
+  from
+    (select dm_drug
+    from nextd_med_info med_info
+    where to_char(med_info.rxcui) = rxnorm_cui
+      or
+      (
+        regexp_like(raw_rx_med_name, med_info.pattern, 'i')
+        and
+        (
+          med_info.but_not is null
+          or not regexp_like(raw_rx_med_name, med_info.but_not, 'i')
+        )
+      )
+    )
+  where rownum <= 1;
+  return cat;
+end;
 
 drop table nextd_lab_review;
 create table nextd_lab_review (
