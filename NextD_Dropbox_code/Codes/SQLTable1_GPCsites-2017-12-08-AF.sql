@@ -22,8 +22,8 @@ DECLARE @studyTimeRestriction int;declare @UpperTimeFrame DATE; declare @LowerTi
 -----              In this section User must provide time frame limits    
 ---------------------------------------------------------------------------------------------------------------
 --Set your time frame below. If time frames not set, the code will use the whole time frame available from the database;
-set @LowerTimeFrame='2011-01-01';
-set @UpperTimeFrame=getdate();--or specify current extraction  end date listed in iRB
+set @LowerTimeFrame='2010-01-01';
+set @UpperTimeFrame=getdate();--or specify current extraction  end date listed in iRB. We expect in January it will be '2017-11-30'
 --set age restrictions:
 declare @UpperAge int; declare @LowerAge int;set @UpperAge=89; set @LowerAge=18;
 ---------------------------------------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ declare @UpperAge int; declare @LowerAge int;set @UpperAge=89; set @LowerAge=18;
 -----                       Encounter should meet the following requerements:                             -----
 -----    Patient must be 18 years old >= age <= 89 years old during the encounter day.                    -----
 -----    Encounter should be encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',                 -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----          The date of the first encounter and total number of encounters is collected.               -----
 ---------------------------------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ into #Denominator_initial
 from capricorn.dbo.CAP_ENCOUNTERS e join capricorn.dbo.CAP_DEMOGRAPHICS d on e.CAP_ID=d.CAP_ID
 where d.BIRTH_DATE is not NULL and e.ENC_TYPE in ('IP','ED','OS','AV','IS') and (datediff(yy,d.BIRTH_DATE,e.ADMIT_DATE) <= @UpperAge and datediff(yy, d.BIRTH_DATE,e.ADMIT_DATE) >=@LowerAge)
 and e.ADMIT_DATE >= @LowerTimeFrame and e.ADMIT_DATE <= @UpperTimeFrame;
--- Collect visits reported on different days no more than 2 years apart:
+-- Collect visits reported on different days within study period:
 select uf.CAP_ID, uf.ADMIT_DATE, row_number() over (partition by un.PATID order by uf.ADMIT_DATE asc) rn 
 into #Denomtemp0
 from #Denominator_initial un join #Denominator_initial uf on un.CAP_ID = uf.CAP_ID
@@ -146,9 +146,11 @@ left join #FinalPregnancy p on a.CAP_ID=p.PATID;
 -----                         Lab should meet the following requerements:                                 -----
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    Lab value is >= 6.5 %.                                                                           -----
------    Lab name is 'A1C' & LOINC codes '27352-2','4548-4'.                                              -----
+-----    Lab name is 'A1C' or                                                                             -----
+-----    LOINC codes '17855-8', '4548-4','4549-2','17856-6','41995-2','59261-8','62388-4',                -----
+-----    '71875-9','54039-3'                                                                              -----
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----                  The first pair of labs meeting requerements is collected.                          -----
 -----     The date of the first HbA1c lab out the first pair will be recorded as initial event.           -----
@@ -195,8 +197,7 @@ select x.PATID, x.LAB_ORDER_DATE as EventDate into #A1c_final_FirstPair from #te
 -----                         Lab should meet the following requerements:                                 -----
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    Lab value is >= 126 mg/dL.                                                                       -----
------    (Lab name is 'GLUF','RUGLUF' or testname 'GLUF') & LOINC codes '1558-6', '1493-6', '10450-5',    -----
------    '1554-5', '17865-7', '14771-0', '77145-1', '1500-8', '1523-0', '1550-3','14769-4'.               -----
+-----    (LOINC codes '1558-6',  '10450-5', '1554-5', '17865-7','35184-1' )                               -----
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
 -----    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
 -----                                                                                                     -----
@@ -247,10 +248,10 @@ select x.PATID, x.LAB_ORDER_DATE as EventDate into #FG_final_FirstPair from #tem
 -----                         Lab should meet the following requerements:                                 -----
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    Lab value is >= 200 mg/dL.                                                                       -----
------    (Lab name is 'GLUF','RUGLUF' or testname 'GLUF') & LOINC codes '1558-6', '1493-6', '10450-5',    -----
------    '1554-5', '17865-7', '14771-0', '77145-1', '1500-8', '1523-0', '1550-3','14769-4'.               -----
+-----    (LOINC codes '2345-7', '2339-0','10450-5','17865-7','1554-5','6777-7','54246-4',                 -----
+-----    '2344-0','41652-9')                                                                              -----
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----                   The first pair of labs meeting requerements is collected.                         -----
 -----   The date of the first random glucose lab out the first pair will be recorded as initial event.    -----
@@ -301,7 +302,7 @@ select x.PATID, x.LAB_ORDER_DATE as EventDate into #RG_final_FirstPair from #tem
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    See corresponding sections above for the Lab values requerements.                                -----  
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----               The first pair of HbA1c labs meeting requerements is collected.                       -----
 -----        The date of the first lab out the first pair will be recorded as initial event.              -----
@@ -328,7 +329,7 @@ from #temp4 x where rn=1;
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    See corresponding sections above for the Lab values requerements.                                -----  
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----               The first pair of HbA1c labs meeting requerements is collected.                       -----
 -----           The date of the first lab out the first pair will be recorded as initial event.           -----
@@ -351,7 +352,7 @@ from #temp5 x where rn=1;
 -----                         Visit should meet the following requerements:                               -----
 -----    Patient must be 18 years old >= age <= 89 years old during on the visit day.                     -----
 -----    Visit should should be of encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',           -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----                  The first pair of visits meeting requerements is collected.                        -----
 -----     The date of the first visit out the first pair will be recorded as initial event.               -----
@@ -397,7 +398,7 @@ select x.PATID, x.ADMIT_DATE as EventDate into #Visits_final_FirstPair from #tem
 -----                         Medication should meet the following requerements:                          -----
 -----     Patient must be 18 years old >= age <= 89 years old during the ordering of medication           -----
 -----    Medication should relate to encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',         -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----                The date of the first medication meeting requerements is collected.                  -----
 ---------------------------------------------------------------------------------------------------------------
@@ -729,7 +730,7 @@ where i3.rn=1;
 -----           Medication and another encounter should meet the following requerements:                  -----
 -----        Patient must be 18 years old >= age <= 89 years old during the recorded encounter            -----
 -----     Encounter should relate to encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',         -----
------    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----                The date of the first medication meeting requerements is collected.                  -----
 ---------------------------------------------------------------------------------------------------------------
