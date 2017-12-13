@@ -68,3 +68,5 @@ SELECT PATID,
 FROM NextD_eligible_encounters
 WHERE rn = 1;
 
+CREATE INDEX NextD_first_visit_PATID_IDX ON NextD_first_visit(PATID);
+
