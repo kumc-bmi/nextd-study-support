@@ -61,3 +61,10 @@ FROM summarized_encounters
 WHERE cnt_distinct_enc_days >= 2;
 ;
 
+
+CREATE TABLE NextD_first_visit AS
+SELECT PATID,
+       ADMIT_DATE AS NextD_first_visit
+FROM NextD_eligible_encounters
+WHERE rn = 1;
+
