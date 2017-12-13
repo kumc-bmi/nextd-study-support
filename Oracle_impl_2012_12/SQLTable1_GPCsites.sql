@@ -190,3 +190,15 @@ SELECT PATID
       ,row_number() OVER (PARTITION BY PATID ORDER BY ADMIT_DATE) rn
 FROM delta_pregnancies
 WHERE months_delta IS NULL OR months_delta >= 12;
+
+-- Transponse pregnancy table into single row per patient
+CREATE TABLE NextD_FinalPregnancy AS
+  SELECT *
+  FROM
+    (
+     SELECT PATID, ADMIT_DATE, rn
+     FROM NextD_distinct_preg_events
+    )
+    PIVOT (max(ADMIT_DATE) for (rn) in (1,2,3,4,5,6,7,8,9,10))
+    ORDER BY PATID
+;
