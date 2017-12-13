@@ -174,3 +174,19 @@ FROM preg_related_dx
 UNION
 SELECT PATID, ADMIT_DATE
 FROM delivery_proc;
+
+-- Find separate pregnancy events (separated by >= 12 months from prior event)
+CREATE TABLE NextD_distinct_preg_events AS
+WITH delta_pregnancies AS (
+    SELECT PATID
+          ,ADMIT_DATE
+          ,round(months_between( ADMIT_DATE
+                               , Lag(ADMIT_DATE, 1, NULL) OVER (PARTITION BY PATID ORDER BY ADMIT_DATE)
+                               )) AS months_delta
+    FROM NextD_pregnancy_event_dates
+)
+SELECT PATID
+      ,ADMIT_DATE
+      ,row_number() OVER (PARTITION BY PATID ORDER BY ADMIT_DATE) rn
+FROM delta_pregnancies
+WHERE months_delta IS NULL OR months_delta >= 12;
