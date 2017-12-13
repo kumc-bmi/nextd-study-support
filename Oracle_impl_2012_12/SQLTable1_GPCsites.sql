@@ -59,7 +59,6 @@ SELECT PATID
       ,age_at_visit
 FROM summarized_encounters
 WHERE cnt_distinct_enc_days >= 2;
-;
 
 
 CREATE TABLE NextD_first_visit AS
@@ -70,3 +69,108 @@ WHERE rn = 1;
 
 CREATE INDEX NextD_first_visit_PATID_IDX ON NextD_first_visit(PATID);
 
+---------------------------------------------------------------------------------------------------------------
+-----                                    Part 2: Defining Pregnancy                                       -----
+---------------------------------------------------------------------------------------------------------------
+-----                             People with pregnancy-related encounters                                -----
+-----                                                                                                     -----
+-----                       Encounter should meet the following requerements:                             -----
+-----           Patient must be 18 years old >= age <= 89 years old during the encounter day.             -----
+-----                                                                                                     -----
+-----                 The date of the first encounter for each pregnancy is collected.                    -----
+---------------------------------------------------------------------------------------------------------------
+
+-- Collect all pregnancy events
+--  as per t-SQL code no ENC_TYPE filtering is done here for maximum coverage, confirming in communication with Alona
+
+CREATE TABLE NextD_pregnancy_event_dates AS
+WITH preg_related_dx AS (
+   SELECT dia.PATID      AS PATID
+         ,dia.ADMIT_DATE AS ADMIT_DATE
+   FROM "&&PCORNET_CDM".DIAGNOSIS dia
+   JOIN "&&PCORNET_CDM".DEMOGRAPHIC d ON dia.PATID = d.PATID
+   WHERE
+      -- miscarriage, abortion, pregnancy, birth and pregnancy related complications diagnosis codes diagnosis codes:
+      (
+        -- ICD9 codes
+        (
+          (   regexp_like(dia.DX,'^63[0-9]\.')
+           or regexp_like(dia.DX,'^6[4-7][0-9]\.')
+           or regexp_like(dia.DX,'^V2[2-3]\.')
+           or regexp_like(dia.DX,'^V28\.')
+          )
+          AND dia.DX_TYPE = '09'
+        )
+        OR
+        -- ICD10 codes
+        (
+          (   regexp_like(dia.DX,'^O')
+           or regexp_like(dia.DX,'^A34\.')
+           or regexp_like(dia.DX,'^Z3[34]\.')
+           or regexp_like(dia.DX,'^Z36')
+          )
+          and dia.DX_TYPE = '10'
+        )
+      )
+      -- age restriction
+      AND
+      (
+        ((dia.ADMIT_DATE - d.BIRTH_DATE) / 365.25 ) BETWEEN 18 AND 89
+      )
+      -- time frame restriction
+      AND
+      (
+         dia.ADMIT_DATE BETWEEN DATE '2010-01-01' AND CURRENT_DATE
+      )
+      -- eligible patients
+      AND
+      (
+        EXISTS (SELECT 1 FROM NextD_first_visit v WHERE dia.PATID = v.PATID)
+      )
+), delivery_proc AS (
+   SELECT  p.PATID       AS PATID
+          ,p.ADMIT_DATE  AS ADMIT_DATE
+    FROM "&&PCORNET_CDM".PROCEDURES  p
+    JOIN "&&PCORNET_CDM".DEMOGRAPHIC d ON p.PATID = d.PATID
+    WHERE
+      -- Procedure codes
+      (
+          -- ICD9 codes
+          (
+            regexp_like(p.PX,'^7[2-5]\.')
+            and p.PX_TYPE = '09'
+          )
+          OR
+          -- ICD10 codes
+          (
+            regexp_like(p.PX,'^10')
+            and p.PX_TYPE = '10'
+          )
+          OR
+          -- CPT codes
+          (
+            regexp_like(p.PX,'^59[0-9][0-9][0-9]')
+            and p.PX_TYPE='CH'
+          )
+      )
+      -- age restriction
+      AND
+      (
+        ((p.ADMIT_DATE - d.BIRTH_DATE) / 365.25 ) BETWEEN 18 AND 89
+      )
+      AND
+      -- time frame restriction
+      (
+        p.ADMIT_DATE BETWEEN DATE '2010-01-01' AND CURRENT_DATE
+      )
+      AND
+      -- eligible patients
+      (
+        EXISTS (SELECT 1 FROM NextD_first_visit v WHERE p.PATID = v.PATID)
+      )
+)
+SELECT PATID, ADMIT_DATE
+FROM preg_related_dx
+UNION
+SELECT PATID, ADMIT_DATE
+FROM delivery_proc;
