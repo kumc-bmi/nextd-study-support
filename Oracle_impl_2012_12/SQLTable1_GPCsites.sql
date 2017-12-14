@@ -362,3 +362,67 @@ WHERE rn = 1;
 -- TODO
 -- I2B2 implementation where labs missing from PCORNET
 --
+
+
+
+---------------------------------------------------------------------------------------------------------------
+-----     People with random glucose having two measures on different days within 2 years interval        -----
+-----                                                                                                     -----
+-----                         Lab should meet the following requerements:                                 -----
+-----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
+-----    Lab value is >= 200 mg/dL.                                                                       -----
+-----    (LOINC codes '2345-7', '2339-0','10450-5','17865-7','1554-5','6777-7','54246-4',                 -----
+-----    '2344-0','41652-9')                                                                              -----
+-----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
+-----                                                                                                     -----
+---------------------------------------------------------------------------------------------------------------
+-----                                    May not be available in PCORNET                                  -----
+---------------------------------------------------------------------------------------------------------------
+-----    In this Oracle version of the code Patient age, encounter type and pregnancy masking is          -----
+-----    accomplished by joining against the set of pregnancy masked eligible encounters                  -----
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE NextD_all_RG AS
+WITH RG_LABS AS (
+SELECT l.PATID
+      ,l.LAB_ORDER_DATE
+      ,l.LAB_NAME
+      ,l.LAB_LOINC
+      ,l.RESULT_NUM
+      ,l.RESULT_UNIT
+FROM "&&PCORNET_CDM".LAB_RESULT_CM l
+WHERE l.LAB_LOINC IN ('2345-7', '2339-0','10450-5','17865-7','1554-5','6777-7','54246-4','2344-0','41652-9')
+      AND l.RESULT_NUM >= 200
+      AND UPPER(l.RESULT_UNIT) = 'MG/DL' -- PCORNET_CDM 3.1 standardizes on uppercase lab units
+      AND EXISTS (SELECT 1 FROM NextD_preg_masked_encounters valid_encs
+                           WHERE valid_encs.ENCOUNTERID = l.ENCOUNTERID)
+)
+SELECT * FROM RG_LABS
+ORDER BY PATID, LAB_ORDER_DATE;
+
+CREATE TABLE NextD_RG_final_FirstPair AS
+WITH DELTA_RG AS (
+SELECT PATID
+      ,LAB_ORDER_DATE
+      ,CASE WHEN LEAD(TRUNC(LAB_ORDER_DATE), 1, NULL) OVER (PARTITION BY PATID ORDER BY LAB_ORDER_DATE) - TRUNC(LAB_ORDER_DATE) BETWEEN 1 AND 365 * 2 
+           THEN 1
+           ELSE 0
+       END AS WITHIN_TWO_YEARS
+FROM NextD_all_RG
+), RG_WITHIN_TWO_YEARS AS (
+SELECT PATID
+      ,LAB_ORDER_DATE
+      ,row_number() OVER (PARTITION BY PATID ORDER BY LAB_ORDER_DATE) AS rn
+FROM DELTA_RG
+WHERE WITHIN_TWO_YEARS = 1
+)
+SELECT PATID
+      , LAB_ORDER_DATE
+FROM RG_WITHIN_TWO_YEARS
+WHERE rn = 1;
+
+--
+-- TODO
+-- I2B2 implementation where labs missing from PCORNET
+--
