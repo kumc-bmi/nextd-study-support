@@ -3,3 +3,4 @@ DROP TABLE NextD_first_visit;
 DROP TABLE NextD_pregnancy_event_dates;
 DROP TABLE NextD_distinct_preg_events;
 DROP TABLE NextD_FinalPregnancy;
+DROP TABLE NextD_preg_masked_encounters;

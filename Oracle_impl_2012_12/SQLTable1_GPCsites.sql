@@ -202,3 +202,15 @@ CREATE TABLE NextD_FinalPregnancy AS
     PIVOT (max(ADMIT_DATE) for (rn) in (1,2,3,4,5,6,7,8,9,10))
     ORDER BY PATID
 ;
+
+-- Index needed for efficient masking of encounters
+CREATE INDEX NextD_distinct_preg_event_idx ON NextD_distinct_preg_events(PATID, ADMIT_DATE);
+
+-- Mask eligible encounters within 1 year of any distinct pregnancies
+CREATE TABLE NextD_preg_masked_encounters AS
+SELECT e.*
+FROM NextD_eligible_encounters e
+WHERE NOT EXISTS (SELECT 1
+                  FROM NextD_distinct_preg_events pevent
+                  WHERE pevent.PATID = e.PATID
+                  AND abs(e.ADMIT_DATE - pevent.ADMIT_DATE) <= 365);
