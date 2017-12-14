@@ -214,3 +214,23 @@ WHERE NOT EXISTS (SELECT 1
                   FROM NextD_distinct_preg_events pevent
                   WHERE pevent.PATID = e.PATID
                   AND abs(e.ADMIT_DATE - pevent.ADMIT_DATE) <= 365);
+
+-- TODO -- TODO -- TODO
+-- Oracle code equivalent to FinalStatTable01 generation
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+-----                 Part3: Combine results from all parts of the code into final table:                 -----
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+/*select a.CAP_ID as PATID, b.FirstVisit, a.NumberOfPermutations as NumerOfVisits,
+  -- x.EventDate as DMonsetDate,
+   d.DEATH_DATE,
+p.[1] as Pregnancy1_Date, p.[2] as Pregnancy2_Date, p.[3] as Pregnancy3_Date, p.[4] as Pregnancy4_Date, p.[5] as Pregnancy5_Date,
+p.[6] as Pregnancy6_Date, p.[7] as Pregnancy7_Date, p.[8] as Pregnancy8_Date, p.[9] as Pregnancy9_Date, p.[10] as Pregnancy10_Date
+into #FinalStatTable01
+from #Denomtemp1 a left join #Denomtemp2 b on a.CAP_ID=b.CAP_ID
+left join capricorn.dbo.CAP_DEATH d on a.CAP_ID=d.CAP_ID
+left join #FinalPregnancy p on a.CAP_ID=p.PATID;
+*/
+
+-- TODO -- TODO -- TODO
