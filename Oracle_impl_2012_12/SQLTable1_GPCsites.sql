@@ -493,3 +493,74 @@ SELECT PATID
       ,EventDate
 FROM A1C_FG_PAIRS
 WHERE rn = 1;
+
+---------------------------------------------------------------------------------------------------------------
+-----               People with two visits (inpatient, outpatient, or emergency department)               -----
+-----             relevant to type 1 Diabetes Mellitus or type 2 Diabetes Mellitus diagnosis              -----
+-----                        recorded on different days within 2 years interval                           -----
+-----                                                                                                     -----
+-----                         Visit should meet the following requerements:                               -----
+-----    Patient must be 18 years old >= age <= 89 years old during on the visit day.                     -----
+-----    Visit should should be of encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',           -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
+-----                                                                                                     -----
+-----                  The first pair of visits meeting requerements is collected.                        -----
+-----     The date of the first visit out the first pair will be recorded as initial event.               -----
+---------------------------------------------------------------------------------------------------------------
+-----    In this Oracle version of the code Patient age, encounter type and pregnancy masking is          -----
+-----    accomplished by joining against the set of pregnancy masked eligible encounters                  -----
+---------------------------------------------------------------------------------------------------------------
+-- Get all visits of specified types for each patient sorted by date:
+
+CREATE TABLE NextD_DX_Visits_initial AS
+WITH DX_VISITS AS (
+  SELECT d.PATID
+        ,d.ADMIT_DATE
+        ,d.DX
+        ,d.DX_TYPE
+  FROM "&&PCORNET_CDM".DIAGNOSIS d
+  WHERE(
+        (
+         (
+             d.DX LIKE '250.%'
+          or d.DX LIKE '357.2'
+          or regexp_like(d.DX,'^362.0[1-7]')
+         )
+         AND DX_TYPE = '09'
+        )
+        OR
+        (
+         (
+             regexp_like(d.DX,'^E1[01]\.')
+          or d.DX LIKE 'E08.42'
+          or d.DX LIKE 'E13.42'
+         )
+         AND DX_TYPE = '10'
+        )
+       )
+       AND EXISTS (SELECT 1 FROM NextD_preg_masked_encounters valid_encs
+                   WHERE valid_encs.ENCOUNTERID = d.ENCOUNTERID)
+)
+SELECT * FROM DX_VISITS
+ORDER BY PATID, ADMIT_DATE;
+
+CREATE TABLE NextD_DX_Visit_final_FirstPair AS
+WITH DELTA_DX AS (
+SELECT PATID
+      ,ADMIT_DATE
+      ,CASE WHEN LEAD(TRUNC(ADMIT_DATE), 1, NULL) OVER (PARTITION BY PATID ORDER BY ADMIT_DATE) - TRUNC(ADMIT_DATE) BETWEEN 1 AND 365 * 2 
+           THEN 1
+           ELSE 0
+       END AS WITHIN_TWO_YEARS
+FROM NextD_DX_Visits_initial
+), DX_WITHIN_TWO_YEARS AS (
+SELECT PATID
+      ,ADMIT_DATE
+      ,row_number() OVER (PARTITION BY PATID ORDER BY ADMIT_DATE) AS rn
+FROM DELTA_DX
+WHERE WITHIN_TWO_YEARS = 1
+)
+SELECT PATID
+      ,ADMIT_DATE
+FROM DX_WITHIN_TWO_YEARS
+WHERE rn = 1;
