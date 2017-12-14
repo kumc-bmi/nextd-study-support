@@ -299,3 +299,66 @@ SELECT PATID
       , LAB_ORDER_DATE
 FROM A1C_WITHIN_TWO_YEARS
 WHERE rn = 1;
+
+---------------------------------------------------------------------------------------------------------------
+-----     People with fasting glucose having two measures on different days within 2 years interval       -----
+-----                                                                                                     -----
+-----                         Lab should meet the following requerements:                                 -----
+-----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
+-----    Lab value is >= 126 mg/dL.                                                                       -----
+-----    (LOINC codes '1558-6',  '10450-5', '1554-5', '17865-7','35184-1' )                               -----
+-----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
+-----    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
+-----                                                                                                     -----
+-----                   The first pair of labs meeting requerements is collected.                         -----
+-----   The date of the first fasting glucose lab out the first pair will be recorded as initial event.   -----
+---------------------------------------------------------------------------------------------------------------
+-----                                    May not be available in PCORNET                                  -----
+---------------------------------------------------------------------------------------------------------------
+-----    In this Oracle version of the code Patient age, encounter type and pregnancy masking is          -----
+-----    accomplished by joining against the set of pregnancy masked eligible encounters                  -----
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE NextD_all_FG AS
+WITH FG_LABS AS (
+SELECT l.PATID
+      ,l.LAB_ORDER_DATE
+      ,l.LAB_NAME
+      ,l.LAB_LOINC
+      ,l.RESULT_NUM
+      ,l.RESULT_UNIT
+FROM "&&PCORNET_CDM".LAB_RESULT_CM l
+WHERE l.LAB_LOINC IN ('1558-6', '10450-5', '1554-5', '17865-7', '35184-1')
+      AND l.RESULT_NUM >= 126
+      AND UPPER(l.RESULT_UNIT) = 'MG/DL' -- PCORNET_CDM 3.1 standardizes on uppercase lab units
+      AND EXISTS (SELECT 1 FROM NextD_preg_masked_encounters valid_encs
+                           WHERE valid_encs.ENCOUNTERID = l.ENCOUNTERID)
+)
+SELECT * FROM FG_LABS
+ORDER BY PATID, LAB_ORDER_DATE;
+
+CREATE TABLE NextD_FG_final_FirstPair AS
+WITH DELTA_FG AS (
+SELECT PATID
+      ,LAB_ORDER_DATE
+      ,CASE WHEN LEAD(TRUNC(LAB_ORDER_DATE), 1, NULL) OVER (PARTITION BY PATID ORDER BY LAB_ORDER_DATE) - TRUNC(LAB_ORDER_DATE) BETWEEN 1 AND 365 * 2 
+           THEN 1
+           ELSE 0
+       END AS WITHIN_TWO_YEARS
+FROM NextD_all_FG
+), FG_WITHIN_TWO_YEARS AS (
+SELECT PATID
+      ,LAB_ORDER_DATE
+      ,row_number() OVER (PARTITION BY PATID ORDER BY LAB_ORDER_DATE) AS rn
+FROM DELTA_FG
+WHERE WITHIN_TWO_YEARS = 1
+)
+SELECT PATID
+      , LAB_ORDER_DATE
+FROM FG_WITHIN_TWO_YEARS
+WHERE rn = 1;
+
+--
+-- TODO
+-- I2B2 implementation where labs missing from PCORNET
+--
