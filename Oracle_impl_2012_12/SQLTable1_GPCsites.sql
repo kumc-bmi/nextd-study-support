@@ -215,6 +215,8 @@ WHERE NOT EXISTS (SELECT 1
                   WHERE pevent.PATID = e.PATID
                   AND abs(e.ADMIT_DATE - pevent.ADMIT_DATE) <= 365);
 
+CREATE INDEX NextD_preg_masked_enc_idx ON NextD_preg_masked_encounters (ENCOUNTERID);
+
 -- TODO -- TODO -- TODO
 -- Oracle code equivalent to FinalStatTable01 generation
 ---------------------------------------------------------------------------------------------------------------
@@ -234,3 +236,66 @@ left join #FinalPregnancy p on a.CAP_ID=p.PATID;
 */
 
 -- TODO -- TODO -- TODO
+
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+-----                                 Defining Deabetes Mellitus sample                                   -----
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+-----        People with HbA1c having two measures on different days within 2 years interval              -----
+-----                                                                                                     -----
+-----                         Lab should meet the following requerements:                                 -----
+-----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
+-----    Lab value is >= 6.5 %.                                                                           -----
+-----    Lab name is 'A1C' or                                                                             -----
+-----    LOINC codes '17855-8', '4548-4','4549-2','17856-6','41995-2','59261-8','62388-4',                -----
+-----    '71875-9','54039-3'                                                                              -----
+-----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
+-----                                                                                                     -----
+-----    In this Oracle version of the code Patient age, encounter type and pregnancy masking is          -----
+-----    accomplished by joining against the set of pregnancy masked eligible encounters                  -----
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE NextD_all_A1C AS
+WITH A1C_LABS AS (
+SELECT l.PATID
+      ,l.LAB_ORDER_DATE
+      ,l.LAB_NAME
+      ,l.LAB_LOINC
+      ,l.RESULT_NUM
+      ,l.RESULT_UNIT
+FROM "&&PCORNET_CDM".LAB_RESULT_CM l
+WHERE ( l.LAB_NAME='A1C'
+        OR
+        l.LAB_LOINC IN ('17855-8', '4548-4','4549-2','17856-6','41995-2','59261-8','62388-4','71875-9','54039-3')
+      )
+      AND l.RESULT_NUM > 6.5
+      AND l.RESULT_UNIT = 'PERCENT'
+      AND EXISTS (SELECT 1 FROM NextD_preg_masked_encounters valid_encs
+                           WHERE valid_encs.ENCOUNTERID = l.ENCOUNTERID)
+)
+SELECT * FROM A1C_LABS
+ORDER BY PATID, LAB_ORDER_DATE;
+
+-- take the first date of the earlist pair of A1C results on distinct days within two years of each other
+CREATE TABLE NextD_A1C_final_FirstPair AS
+WITH DELTA_A1C AS (
+SELECT PATID
+      ,LAB_ORDER_DATE
+      ,CASE WHEN LEAD(TRUNC(LAB_ORDER_DATE), 1, NULL) OVER (PARTITION BY PATID ORDER BY LAB_ORDER_DATE) - TRUNC(LAB_ORDER_DATE) BETWEEN 1 AND 365 * 2 
+           THEN 1
+           ELSE 0
+       END AS WITHIN_TWO_YEARS
+FROM NextD_all_A1C
+), A1C_WITHIN_TWO_YEARS AS (
+SELECT PATID
+      ,LAB_ORDER_DATE
+      ,row_number() OVER (PARTITION BY PATID ORDER BY LAB_ORDER_DATE) AS rn
+FROM DELTA_A1C
+WHERE WITHIN_TWO_YEARS = 1
+)
+SELECT PATID
+      , LAB_ORDER_DATE
+FROM A1C_WITHIN_TWO_YEARS
+WHERE rn = 1;
