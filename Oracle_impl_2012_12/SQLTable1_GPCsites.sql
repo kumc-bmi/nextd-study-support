@@ -426,3 +426,70 @@ WHERE rn = 1;
 -- TODO
 -- I2B2 implementation where labs missing from PCORNET
 --
+
+---------------------------------------------------------------------------------------------------------------
+-----     People with one random glucose & one HbA1c having both measures on different days within        -----
+-----                                        2 years interval                                             -----
+-----                                                                                                     -----
+-----                         Lab should meet the following requerements:                                 -----
+-----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
+-----    See corresponding sections above for the Lab values requerements.                                -----
+-----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
+-----                                                                                                     -----
+-----        The date of the first lab out the first pair will be recorded as initial event.              -----
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE NextD_A1cRG_final_firstPair AS
+WITH A1C_RG_PAIRS AS (
+select  ac.PATID
+       ,CASE WHEN rg.LAB_ORDER_DATE < ac.LAB_ORDER_DATE
+             THEN rg.LAB_ORDER_DATE
+             ELSE ac.LAB_ORDER_DATE
+        END AS EventDate
+       ,row_number() over (partition by ac.PATID order by CASE WHEN rg.LAB_ORDER_DATE < ac.LAB_ORDER_DATE
+                                                               THEN rg.LAB_ORDER_DATE
+                                                               ELSE ac.LAB_ORDER_DATE
+                                                          END) AS rn
+from NextD_all_A1C ac
+join NextD_all_RG rg on ac.PATID = rg.PATID
+WHERE ABS(TRUNC(ac.LAB_ORDER_DATE) - TRUNC(rg.LAB_ORDER_DATE)) BETWEEN 1 AND 365 * 2
+)
+SELECT PATID
+      ,EventDate
+FROM A1C_RG_PAIRS
+WHERE rn = 1;
+
+
+---------------------------------------------------------------------------------------------------------------
+-----     People with one fasting glucose & one HbA1c having both measures on different days within       -----
+-----                                        2 years interval                                             -----
+-----                                                                                                     -----
+-----                         Lab should meet the following requerements:                                 -----
+-----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
+-----    See corresponding sections above for the Lab values requerements.                                -----
+-----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
+-----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
+-----                                                                                                     -----
+-----        The date of the first lab out the first pair will be recorded as initial event.              -----
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE NextD_A1cFG_final_firstPair AS
+WITH A1C_FG_PAIRS AS (
+select  ac.PATID
+       ,CASE WHEN fg.LAB_ORDER_DATE < ac.LAB_ORDER_DATE
+             THEN fg.LAB_ORDER_DATE
+             ELSE ac.LAB_ORDER_DATE
+        END AS EventDate
+       ,row_number() over (partition by ac.PATID order by CASE WHEN fg.LAB_ORDER_DATE < ac.LAB_ORDER_DATE
+                                                               THEN fg.LAB_ORDER_DATE
+                                                               ELSE ac.LAB_ORDER_DATE
+                                                          END) AS rn
+from NextD_all_A1C ac
+join NextD_all_FG fg on ac.PATID = fg.PATID
+WHERE ABS(TRUNC(ac.LAB_ORDER_DATE) - TRUNC(fg.LAB_ORDER_DATE)) BETWEEN 1 AND 365 * 2
+)
+SELECT PATID
+      ,EventDate
+FROM A1C_FG_PAIRS
+WHERE rn = 1;

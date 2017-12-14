@@ -11,3 +11,5 @@ DROP TABLE NextD_all_FG;
 DROP TABLE NextD_FG_final_FirstPair;
 DROP TABLE NextD_all_RG;
 DROP TABLE NextD_RG_final_FirstPair;
+DROP TABLE NextD_A1cRG_final_firstPair;
+DROP TABLE NextD_A1cFG_final_firstPair;
