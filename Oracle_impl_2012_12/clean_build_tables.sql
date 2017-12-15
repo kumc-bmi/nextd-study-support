@@ -18,3 +18,4 @@ DROP TABLE NextD_DX_Visits_initial;
 DROP TABLE NextD_DX_Visit_final_FirstPair;
 
 DROP TABLE NextD_specific_meds;
+DROP TABLE NextD_InclusionMeds_final;
