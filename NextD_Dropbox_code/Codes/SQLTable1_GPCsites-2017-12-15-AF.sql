@@ -4,10 +4,13 @@
 -----                                    Code producing Table 1:                                          -----  
 -----           Study sample, flag for established patient, T2DM sample, Pregnancy events                 -----  
 --------------------------------------------------------------------------------------------------------------- 
-/* Tables for this eaxtraction: 
+/* Tables used in this code: 
 1. DIAGNOSIS,ENCOUNTER,DEMOGRAPHIC,PROCEDURES,LAB_RESULT_CM,PRESCRIBING tables from PCORNET.
-2. CAP_ENCOUNTERS,CAP_DEMOGRAPHICS,CAP_DEATH,CAP_LABS tables from CAPRICORN.
-3. Tabel with mapping (named here #GlobalIDtable) between PCORNET IDs and Global patient IDs provided by MRAIA. */
+2. Local data warehouse tables:CAP_ENCOUNTERS (having encounters mapped to PCORNET encounter types),
+CAP_DEMOGRAPHICS (having date of birth is important),
+CAP_DEATH (having death information),CAP_LABS (having labs).
+
+Important: patient IDs in non-PCORNET tables are labeled here as CAP_ID.*/
 ---------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
 -----                          Part 0: Defining Time farme for this study                               -----  
@@ -19,8 +22,8 @@ DECLARE @studyTimeRestriction int;declare @UpperTimeFrame DATE; declare @LowerTi
 -----              In this section User must provide time frame limits    
 ---------------------------------------------------------------------------------------------------------------
 --Set your time frame below. If time frames not set, the code will use the whole time frame available from the database;
-set @LowerTimeFrame='2011-01-01';
-set @UpperTimeFrame=getdate();--or specify current extraction  end date listed in iRB. By January we expect it will be '2017-11-30'
+set @LowerTimeFrame='2010-01-01';
+set @UpperTimeFrame=getdate();--or specify current extraction  end date listed in iRB. We expect in January it will be '2017-11-30'
 --set age restrictions:
 declare @UpperAge int; declare @LowerAge int;set @UpperAge=89; set @LowerAge=18;
 ---------------------------------------------------------------------------------------------------------------
@@ -45,7 +48,7 @@ into #Denominator_initial
 from capricorn.dbo.CAP_ENCOUNTERS e join capricorn.dbo.CAP_DEMOGRAPHICS d on e.CAP_ID=d.CAP_ID
 where d.BIRTH_DATE is not NULL and e.ENC_TYPE in ('IP','ED','OS','AV','IS') and (datediff(yy,d.BIRTH_DATE,e.ADMIT_DATE) <= @UpperAge and datediff(yy, d.BIRTH_DATE,e.ADMIT_DATE) >=@LowerAge)
 and e.ADMIT_DATE >= @LowerTimeFrame and e.ADMIT_DATE <= @UpperTimeFrame;
--- Collect visits reported on different days within the study period:
+-- Collect visits reported on different days within study period:
 select uf.CAP_ID, uf.ADMIT_DATE, row_number() over (partition by un.PATID order by uf.ADMIT_DATE asc) rn 
 into #Denomtemp0
 from #Denominator_initial un join #Denominator_initial uf on un.CAP_ID = uf.CAP_ID
@@ -143,8 +146,9 @@ left join #FinalPregnancy p on a.CAP_ID=p.PATID;
 -----                         Lab should meet the following requerements:                                 -----
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    Lab value is >= 6.5 %.                                                                           -----
------    Lab name is 'A1C' or LOINC codes '17855-8', '4548-4','4549-2','17856-6','41995-2',               -----
------    '59261-8','62388-4','71875-9','54039-3'                                                          -----
+-----    Lab name is 'A1C' or                                                                             -----
+-----    LOINC codes '17855-8', '4548-4','4549-2','17856-6','41995-2','59261-8','62388-4',                -----
+-----    '71875-9','54039-3'                                                                              -----
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
 -----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
@@ -193,9 +197,9 @@ select x.PATID, x.LAB_ORDER_DATE as EventDate into #A1c_final_FirstPair from #te
 -----                         Lab should meet the following requerements:                                 -----
 -----    Patient must be 18 years old >= age <= 89 years old during the lab ordering day.                 -----
 -----    Lab value is >= 126 mg/dL.                                                                       -----
------    (LOINC codes '1558-6',  '10450-5', '1554-5', '17865-7','35184-1')                                -----
+-----    (LOINC codes '1558-6',  '10450-5', '1554-5', '17865-7','35184-1' )                               -----
 -----    Lab should meet requerement for encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',     -----
------    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
+-----    'INPATIENT HOSPITAL STAY', 'EMERGENCY DEPARTMENT TO INPATIENT HOSPITAL STAY'.                    -----
 -----                                                                                                     -----
 -----                   The first pair of labs meeting requerements is collected.                         -----
 -----   The date of the first fasting glucose lab out the first pair will be recorded as initial event.   -----
@@ -393,7 +397,7 @@ select x.PATID, x.ADMIT_DATE as EventDate into #Visits_final_FirstPair from #tem
 -----                                                                                                     -----            
 -----                         Medication should meet the following requerements:                          -----
 -----     Patient must be 18 years old >= age <= 89 years old during the ordering of medication           -----
------    Medication should relate to encounter types:'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',          -----
+-----    Medication should relate to encounter types: 'AMBULATORY VISIT', 'EMERGENCY DEPARTMENT',         -----
 -----    'INPATIENT HOSPITAL STAY', 'OBSERVATIONAL STAY', 'NON-ACUTE INSTITUTIONAL STAY'.                 -----
 -----                                                                                                     -----
 -----                The date of the first medication meeting requerements is collected.                  -----
@@ -674,6 +678,12 @@ from
 				union
 				select a2.PATID,a2.MedDate 
 				from #SulfonylureaByRXNORM_initial a2
+				union
+				select a3.PATID,a3.MedDate 
+				from #GLP1AByNames_initial a3
+				union
+				select a3.PATID,a3.MedDate 
+				from #GLP1AByRXNORM_initial a3
 				union
 				select b1.PATID, b1.MedDate
 				from #AlphaGlucosidaseInhByNames_initial as b1
@@ -994,15 +1004,14 @@ from #FinalStatTable01 a left join #All x on a.PATID=x.PATID;
 -----                          Part5: Add up established patient flag:                                    -----
 ---------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
-select d.GLOBALID,a.*,b.EstablishedPatientFlag
+select a.*,b.EstablishedPatientFlag
 into #Final_Table1
-from #FinalStatTable1 a left join #EstablishedPatientTable b on a.PATID=b.PATID
-join  /* provide name the table containing c.PATID,Hashes, and Global patient id*/ #GlobalIDtable d on a.PATID=d.CAP_ID;
+from #FinalStatTable1 a left join #EstablishedPatientTable b on a.PATID=b.PATID;
 ---------------------------------------------------------------------------------------------------------------
 /* Save #Final_Table1 as csv file. 
 Use "|" symbol as field terminator and 
 "ENDALONAEND" as row terminator. */ 
 ---------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
------  Please, save table #FinalStatTable1 localy. It will be used in all further data extractions       ------
+-----  Please, save table #FinalStatTable1 localy since it will be used in all further data extractions  ------
 ---------------------------------------------------------------------------------------------------------------

@@ -20,7 +20,7 @@ DECLARE @studyTimeRestriction int;declare @UpperTimeFrame DATE; declare @LowerTi
 ---------------------------------------------------------------------------------------------------------------
 --Set your time frame below. If time frames not set, the code will use the whole time frame available from the database;
 set @LowerTimeFrame='2011-01-01';
-set @UpperTimeFrame=getdate();--or specify current extraction  end date listed in iRB. By January we expect it will be '2017-11-30'
+set @UpperTimeFrame=getdate();--or specify current extraction  end date listed in iRB. By January we expect it will be '2017-08-31'
 --set age restrictions:
 declare @UpperAge int; declare @LowerAge int;set @UpperAge=89; set @LowerAge=18;
 ---------------------------------------------------------------------------------------------------------------
@@ -674,6 +674,12 @@ from
 				union
 				select a2.PATID,a2.MedDate 
 				from #SulfonylureaByRXNORM_initial a2
+				union
+				select a3.PATID,a3.MedDate 
+				from #GLP1AByNames_initial a3
+				union
+				select a3.PATID,a3.MedDate 
+				from #GLP1AByRXNORM_initial a3
 				union
 				select b1.PATID, b1.MedDate
 				from #AlphaGlucosidaseInhByNames_initial as b1

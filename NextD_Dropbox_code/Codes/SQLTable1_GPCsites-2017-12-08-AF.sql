@@ -308,7 +308,7 @@ select x.PATID, x.LAB_ORDER_DATE as EventDate into #RG_final_FirstPair from #tem
 -----        The date of the first lab out the first pair will be recorded as initial event.              -----
 ---------------------------------------------------------------------------------------------------------------
 -- Get lab values from corresponding tables produced above:
-select uf.PATID, uf.LAB_ORDER_DATE as RG_date, un.LAB_ORDER_DATE as A1c_date,row_number() over (partition by un.PATID order by uf.LAB_ORDER_DATE asc) rn 
+select uf.PATID, uf.LAB_ORDER_DATE as RG_date, un.LAB_ORDER_DATE as A1c_date,row_number() over (partition by un.PATID order by CASE WHEN uf.LAB_ORDER_DATE  < un.LAB_ORDER_DATE THEN uf.LAB_ORDER_DATE ELSE un.LAB_ORDER_DATE END asc) rn 
 into #temp4
 from #A1c_initial un join #RG_initial uf on un.PATID = uf.PATID
 where abs(datediff(dd,un.LAB_ORDER_DATE,uf.LAB_ORDER_DATE))>1 and abs(datediff(yy,un.LAB_ORDER_DATE,uf.LAB_ORDER_DATE))<=2;
@@ -335,7 +335,7 @@ from #temp4 x where rn=1;
 -----           The date of the first lab out the first pair will be recorded as initial event.           -----
 ---------------------------------------------------------------------------------------------------------------
 -- Get lab values from corresponding tables produced above:
-select uf.PATID, uf.LAB_ORDER_DATE as FG_date, un.LAB_ORDER_DATE as A1c_date,row_number() over (partition by un.PATID order by uf.LAB_ORDER_DATE asc) rn 
+select uf.PATID, uf.LAB_ORDER_DATE as FG_date, un.LAB_ORDER_DATE as A1c_date,row_number() over (partition by un.PATID order by CASE WHEN uf.LAB_ORDER_DATE  < un.LAB_ORDER_DATE THEN uf.LAB_ORDER_DATE ELSE un.LAB_ORDER_DATE END asc) rn 
 into #temp5
 from #A1c_initial un join #FG_initial uf on un.PATID = uf.PATID
 where abs(datediff(dd,un.LAB_ORDER_DATE,uf.LAB_ORDER_DATE))>1 and abs(datediff(yy,un.LAB_ORDER_DATE,uf.LAB_ORDER_DATE))<=2;
