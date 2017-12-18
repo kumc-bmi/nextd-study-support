@@ -936,12 +936,6 @@ from
 				union
 				select d.PATID, d.MedDate  
 				from #p4 as d
-				union
-				select e.PATID, e.MedDate  
-				from #p5 as e
-				union
-				select f.PATID, f.MedDate  
-				from #p6 as f
 				)x
 			left join #FinalPregnancy p
 			on x.PATID=p.PATID
