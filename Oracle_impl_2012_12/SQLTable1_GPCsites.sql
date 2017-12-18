@@ -940,3 +940,41 @@ OR
      or a.RXNORM_CUI in ('60548','475968','604751','847908','847910','847911','847913','847914','847915','847916','847917','847919','897120','897122','897123','897124','897126','1163230','1163790','1169415','1186578','1242961','1242963','1242964','1242965','1242967','1242968','1244651','1359640','1359802','1359979','1360105','1360454','1360495','1544916','1544918','1544919','1544920','1593624','1596425','1598264','1598265','1598267','1598268','1598269','1598618','1653594','1653597','1653600','1653610','1653611','1653613','1653614','1653616','1653619','1653625','1654044','1654730','1727493','1804447','1804505')
    )
 );
+
+CREATE TABLE NextD_incl_non_spec_meds_final AS
+WITH p1 AS ( -- Get set of patients having one med & one visit:
+    SELECT x.PATID, x.RX_ORDER_DATE AS MedDate
+    FROM NextD_incl_restrict_meds x
+    JOIN NextD_DX_Visits_initial y ON x.PATID = y.PATID
+    WHERE ABS(x.RX_ORDER_DATE - y.ADMIT_DATE) > 1
+), p2 AS (   -- Get set of patients having one med & one HbA1c:
+    SELECT x.PATID, x.RX_ORDER_DATE AS MedDate
+    FROM NextD_incl_restrict_meds x
+    JOIN NextD_all_A1C y ON x.PATID = y.PATID
+    WHERE ABS(x.RX_ORDER_DATE - y.LAB_ORDER_DATE) > 1
+), p3 AS (   -- Get set of patients having one med & fasting glucose measurement:
+    SELECT x.PATID, x.RX_ORDER_DATE AS MedDate
+    FROM NextD_incl_restrict_meds x
+    JOIN NextD_all_FG y ON x.PATID = y.PATID
+    WHERE ABS(x.RX_ORDER_DATE - y.LAB_ORDER_DATE) > 1
+), p4 AS (   -- Get set of patients having one med & random glucose measurement:
+    SELECT x.PATID, x.RX_ORDER_DATE AS MedDate
+    FROM NextD_incl_restrict_meds x
+    JOIN NextD_all_RG y ON x.PATID = y.PATID
+    WHERE ABS(x.RX_ORDER_DATE - y.LAB_ORDER_DATE) > 1
+), combine_restrict_med_events AS (
+    SELECT PATID, MedDate
+    FROM p1
+    UNION ALL
+    SELECT PATID, MedDate
+    FROM p2
+    UNION ALL
+    SELECT PATID, MedDate
+    FROM p3
+    UNION ALL
+    SELECT PATID, MedDate
+    FROM p4
+)
+SELECT PATID, MIN(MedDate) AS EventDate
+FROM combine_restrict_med_events
+GROUP BY PATID;
