@@ -62,8 +62,9 @@ WHERE cnt_distinct_enc_days >= 2;
 
 
 CREATE TABLE NextD_first_visit AS
-SELECT PATID,
-       ADMIT_DATE AS NextD_first_visit
+SELECT  PATID
+       ,ADMIT_DATE AS NextD_first_visit
+       ,cnt_distinct_enc_days
 FROM NextD_eligible_encounters
 WHERE rn = 1;
 
