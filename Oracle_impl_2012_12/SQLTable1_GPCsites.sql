@@ -979,3 +979,15 @@ WITH p1 AS ( -- Get set of patients having one med & one visit:
 SELECT PATID, MIN(MedDate) AS EventDate
 FROM combine_restrict_med_events
 GROUP BY PATID;
+
+---------------------------------------------------------------------------------------------------------------
+----                    Set up PCORNET_CDM specific EstablishedPatient flag                               -----
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE NextD_EstablishedPatient AS
+SELECT DISTINCT PATID
+FROM "&&PCORNET_CDM".ENCOUNTER
+WHERE ADMIT_DATE < DATE '2010-01-01'; -- Adjust this if not using 2010-01-01 for study start date
+
+CREATE INDEX NextD_Estabished_PATID_IDX ON NextD_EstablishedPatient(PATID);
+
