@@ -15,32 +15,33 @@ See also:
 
  - [NEXT-D Data Request Detail](https://informatics.gpcnetwork.org/trac/Project/attachment/ticket/539/NEXT-D_Request%20for%20Data_Detailed_12.1.16.docx) draft of Nov 15
  - [Ticket #546](https://informatics.gpcnetwork.org/trac/Project/ticket/546)
-
+ - [Ticket #545](https://informatics.gpcnetwork.org/trac/Project/ticket/545)
 
 
 ## Implemenation overview
 
-NEXT-D query code targets PCORNET CDM implementations, originally developed against a SQLServer (see SQLServer_impl) CDM by Al'ona Furmanchuk and then ported to Oracle (see Oracle_impl).
+NEXT-D query code targets PCORNET CDM implementations, originally developed against a SQLServer (see NextD_Dropbox_code) CDM by Al'ona Furmanchuk and then ported to Oracle (see Oracle_impl).
 
-The SQLServer implementation using local temp tables. These are not implemented by Oracle which uses global temp tables. The Oracle implementation therefore has "init_Oracle_temp_tables_ddl.sql" to define these tables. The definitions of these tables (but note their data contents) will persist in the Oracle schema used. 
+The SQLServer implementation using local temp tables. These are not implemented by Oracle which uses global temp tables. As of 2017-12 the Oracle implementation uses realized tables. The script "clean_build_tables.sql" in the Oracle_impl/ folder can be used to to clean up these realized tables before a re-run of "SQLTable1_GPCsites.sql".
 
-Oracle sites may wish to create a separate NEXT-D schema with select priveleges on their CDM schema to segregate 
-NEXT-D specific work.
+Oracle sites may wish to create a separate NEXT-D schema with select priveleges on their CDM schema to segregate NEXT-D specific work.
 
-### Reference code sets
-Common code references for lab and medication are in ref_code_table_data and will need to be loaded into their corresponding tables in the NEXT-D/CDM schema when required by subsquent data analysis and extract steps.
+## I2B2 sourced labs
+The Oracle implementation from MCW as of 2017-12-18 assumes all labs are available (especially fasting and random glucose for Table1 generation) from PCORNet CDM "LAB_RESULT_CM" table. A 'TODO' placeholder section is in the file "SQLTable1_GPCsites.sql" which will need implementation where these labs are to be taken from I2B2. LOINC codes are specified in the NextD Dropbox documentation (not in this github repo), but should match those used in the PCORNET CDM code.
 
-_These data are not required for the "Table1" extract due 2017-09-05_ (see [Ticket:545](https://informatics.gpcnetwork.org/trac/Project/ticket/545))
+## Correct dates assumed
+Note both the PCORNET CDM code and any I2B2 extraction assumes non-offset dates are available, or that code will be modified to join source tables with the appropriate per patient date correction to apply.
 
-## Table 1 subset extraction (due 2017-09-05)
+## Site specific data
+Extraction code (see the NextD_Dropbox_code) will be added to the Oracle_impl. 
+But note Provider characterization (via NPI taxonomy code), Visit Financial Class and geo-coding data are not part of the CDM spec and so site specific work will be needed to implement these.
 
-SQLServer code has not been updated yet for this.
 
-Oracle code is in Oracle_impl/NextD_table1.sql. 
-  - First run init_Oracle_temp_tables_ddl.sql (errors from TRUNCATE and DROP can be ignored on an initial run) 
-  - Either modify NextD_table1.sql to reference your specific CDM schema (replacing all references to "&&PCORNET_CDM""), or rely on SqlPlus variable substition if that is your Oracle client of choice.
-  - Run NextD_table1.sql
-  - Extract the "SubTable1_for_export" result table and upload to REDCap.
+## To run Oracle SQLTable1_GPCsites.sql
+Oracle code is in Oracle_impl/SQLTable1_GPCsites.sql
+  - Either modify SQLTable1_GPCsites.sql to reference your specific CDM schema (replacing all references to "&&PCORNET_CDM""), or rely on SqlPlus variable substition if that is your Oracle client of choice.
+  
+Extraction code for referencing study Table1 (called "FinalStatTable1" in all SQL code) can be reviewed in "NextD_Dropbox_code", better documented GPC specific versions can be expected to be added to "Oracle_impl".
 
 ## Study Info
 
