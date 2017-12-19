@@ -344,10 +344,12 @@ SELECT PATID
 FROM FG_WITHIN_TWO_YEARS
 WHERE rn = 1;
 
---
--- TODO
--- I2B2 implementation where labs missing from PCORNET
---
+--************************************************************************************************************--
+--  TODO   If Fasting Glucose (above) and / or Random Glucose (below) are not available in PCORNET CDM        --
+--  TODO   LAB_RESULT_CM table then I2B2 implementation needs to go here                                      --
+--  TODO                                                                                                      --
+--  TODO   As with all data for NextD study dates interrogated need to be true not offset +/- 1 year          --
+--************************************************************************************************************--
 
 
 
