@@ -1044,9 +1044,12 @@ SELECT v.PATID
 ;
 
 ---------------------------------------------------------------------------------------------------------------
-/* Save Final_Table1 as csv file.
+/* Save FinalStatTable1 as csv file.
 Use "|" symbol as field terminator and
 "ENDALONAEND" as row terminator. */
+
+-- If your site is only to return YYYY-MM for dates make sure your export formats FinalStatTable1 correctly
+
 ---------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
 -----  Please, save table FinalStatTable1 locally since it will be used in all further data extractions  ------
