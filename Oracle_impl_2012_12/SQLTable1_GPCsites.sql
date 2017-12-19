@@ -218,25 +218,10 @@ WHERE NOT EXISTS (SELECT 1
 
 CREATE INDEX NextD_preg_masked_enc_idx ON NextD_preg_masked_encounters (ENCOUNTERID);
 
--- TODO -- TODO -- TODO
 -- Oracle code equivalent to FinalStatTable01 generation
----------------------------------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------------------------------
------                 Part3: Combine results from all parts of the code into final table:                 -----
----------------------------------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------------------------------
-/*select a.CAP_ID as PATID, b.FirstVisit, a.NumberOfPermutations as NumerOfVisits,
-  -- x.EventDate as DMonsetDate,
-   d.DEATH_DATE,
-p.[1] as Pregnancy1_Date, p.[2] as Pregnancy2_Date, p.[3] as Pregnancy3_Date, p.[4] as Pregnancy4_Date, p.[5] as Pregnancy5_Date,
-p.[6] as Pregnancy6_Date, p.[7] as Pregnancy7_Date, p.[8] as Pregnancy8_Date, p.[9] as Pregnancy9_Date, p.[10] as Pregnancy10_Date
-into #FinalStatTable01
-from #Denomtemp1 a left join #Denomtemp2 b on a.CAP_ID=b.CAP_ID
-left join capricorn.dbo.CAP_DEATH d on a.CAP_ID=d.CAP_ID
-left join #FinalPregnancy p on a.CAP_ID=p.PATID;
-*/
+-- is deferred until the completed FinalStatTable1 is created
+-- at the end of this file
 
--- TODO -- TODO -- TODO
 
 ---------------------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------------------
@@ -991,3 +976,76 @@ WHERE ADMIT_DATE < DATE '2010-01-01'; -- Adjust this if not using 2010-01-01 for
 
 CREATE INDEX NextD_Estabished_PATID_IDX ON NextD_EstablishedPatient(PATID);
 
+---------------------------------------------------------------------------------------------------------------
+-----                                      Defining onset date                                            -----
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+-----                    Combine results from all parts of the code into final table:                     -----
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE FinalStatTable1 AS
+WITH combined_onset_dates AS (
+   SELECT a.PATID, a.EventDate
+   FROM NextD_DX_Visit_final_FirstPair a
+   UNION ALL
+   SELECT b.PATID, b.EventDate
+   FROM NextD_InclusionMeds_final      b
+   UNION ALL
+   SELECT c.PATID, c.EventDate
+   FROM NextD_A1C_final_FirstPair      c
+   UNION ALL
+   SELECT d.PATID, d.EventDate
+   FROM NextD_FG_final_FirstPair       d
+   UNION ALL
+   SELECT e.PATID, e.EventDate
+   FROM NextD_RG_final_FirstPair       e
+   UNION ALL
+   SELECT f.PATID, f.EventDate
+   FROM NextD_A1cFG_final_firstPair    f
+   UNION ALL
+   SELECT g.PATID, g.EventDate
+   FROM NextD_A1cRG_final_firstPair    g
+   UNION ALL
+   SELECT k.PATID, k.EventDate
+   FROM NextD_incl_non_spec_meds_final k
+), DM_OnsetDates AS (
+   SELECT PATID, MIN(EventDate) AS DMonsetDate
+   FROM combined_onset_dates
+   GROUP BY PATID
+)
+SELECT v.PATID
+      ,v.NextD_first_visit AS FirstVisit
+      ,v.cnt_distinct_enc_days AS NumberOfVisits
+      ,d.DEATH_DATE
+      ,p."1"  AS Pregnancy1_date
+      ,p."2"  AS Pregnancy2_date
+      ,p."3"  AS Pregnancy3_date
+      ,p."4"  AS Pregnancy4_date
+      ,p."5"  AS Pregnancy5_date
+      ,p."6"  AS Pregnancy6_date
+      ,p."7"  AS Pregnancy7_date
+      ,p."8"  AS Pregnancy8_date
+      ,p."9"  AS Pregnancy9_date
+      ,p."10" AS Pregnancy10_date
+      ,dm.DMonsetDate AS DMonsetDate
+      ,CASE WHEN estab.PATID IS NOT NULL
+            THEN 1
+            ELSE NULL
+       END AS EstablishedPatientFlag
+   FROM NextD_first_visit v
+   LEFT JOIN NextD_FinalPregnancy p ON v.PATID = p.PATID
+   LEFT JOIN "&&PCORNET_CDM".DEATH d ON v.PATID = d.PATID
+   LEFT JOIN DM_OnsetDates dm ON v.PATID = dm.PATID
+   LEFT JOIN NextD_EstablishedPatient estab ON v.PATID = estab.PATID
+;
+
+---------------------------------------------------------------------------------------------------------------
+/* Save Final_Table1 as csv file.
+Use "|" symbol as field terminator and
+"ENDALONAEND" as row terminator. */
+---------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+-----  Please, save table FinalStatTable1 locally since it will be used in all further data extractions  ------
+---------------------------------------------------------------------------------------------------------------
