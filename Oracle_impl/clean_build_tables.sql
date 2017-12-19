@@ -21,3 +21,6 @@ DROP TABLE NextD_specific_meds;
 DROP TABLE NextD_InclusionMeds_final;
 DROP TABLE NextD_incl_restrict_meds;
 DROP TABLE NextD_incl_non_spec_meds_final;
+
+DROP TABLE NextD_EstablishedPatient;
+DROP TABLE FinalStatTable1;
